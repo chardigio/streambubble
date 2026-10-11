@@ -1,0 +1,7 @@
+# XcodeGen makes the project from project.yml.
+*.xcodeproj
+*.xcworkspace
+build/
+DerivedData/
+.build/
+.swiftpm/
