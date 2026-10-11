@@ -1,0 +1,82 @@
+name: StreamBubble
+
+options:
+  bundleIdPrefix: com.cd17822
+  deploymentTarget:
+    macOS: "15.0"
+  developmentLanguage: en
+  createIntermediateGroups: true
+  groupSortPosition: top
+  generateEmptyDirectories: false
+
+settings:
+  base:
+    # The personal team, as for the iOS apps. A stable signature also keeps the macOS
+    # Screen Recording, Camera, and Microphone grants across rebuilds; an ad hoc signature
+    # changes on each build, and macOS then asks for the permissions again.
+    DEVELOPMENT_TEAM: 6P54HH43TD
+    CODE_SIGN_STYLE: Automatic
+    SWIFT_VERSION: "6.0"
+    SWIFT_STRICT_CONCURRENCY: complete
+    MACOSX_DEPLOYMENT_TARGET: "15.0"
+    MARKETING_VERSION: "1.0"
+    CURRENT_PROJECT_VERSION: "1"
+    ENABLE_USER_SCRIPT_SANDBOXING: YES
+  configs:
+    Debug:
+      SWIFT_ACTIVE_COMPILATION_CONDITIONS: DEBUG
+      SWIFT_OPTIMIZATION_LEVEL: -Onone
+      ONLY_ACTIVE_ARCH: YES
+    Release:
+      SWIFT_OPTIMIZATION_LEVEL: -O
+
+packages:
+  StreamBubbleKit:
+    path: StreamBubbleKit
+
+targets:
+  StreamBubble:
+    type: application
+    platform: macOS
+    sources:
+      - path: StreamBubble
+    info:
+      path: StreamBubble/Info.plist
+      properties:
+        CFBundleDisplayName: StreamBubble
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        LSApplicationCategoryType: public.app-category.productivity
+        # A menu bar app: no Dock icon and no main window.
+        LSUIElement: true
+        NSCameraUsageDescription: StreamBubble shows your camera in a round bubble on the screen, so the recording shows you too.
+        NSMicrophoneUsageDescription: StreamBubble records your voice with the screen.
+        # Lets the macOS Portrait video effect (background blur) apply to the bubble's camera.
+        NSCameraPortraitEffectEnabled: true
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.cd17822.streambubble
+        PRODUCT_NAME: StreamBubble
+        # Rendered from brand/ by scripts/make_appicon.sh.
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        # Local use only. No sandbox, so the app can write to ~/Movies without a picker.
+        ENABLE_APP_SANDBOX: NO
+        ENABLE_HARDENED_RUNTIME: NO
+    dependencies:
+      - package: StreamBubbleKit
+      - sdk: ScreenCaptureKit.framework
+      - sdk: Carbon.framework
+
+schemes:
+  StreamBubble:
+    build:
+      targets:
+        StreamBubble: all
+    run:
+      config: Debug
+    test:
+      config: Debug
+      targets:
+        - package: StreamBubbleKit/StreamBubbleKitTests
+    archive:
+      config: Release
