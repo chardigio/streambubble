@@ -40,6 +40,13 @@ targets:
     platform: macOS
     sources:
       - path: StreamBubble
+    entitlements:
+      path: StreamBubble/StreamBubble.entitlements
+      properties:
+        com.apple.security.app-sandbox: true
+        com.apple.security.assets.movies.read-write: true
+        com.apple.security.device.audio-input: true
+        com.apple.security.device.camera: true
     info:
       path: StreamBubble/Info.plist
       properties:
@@ -53,15 +60,19 @@ targets:
         NSMicrophoneUsageDescription: StreamBubble records your voice with the screen.
         # Lets the macOS Portrait video effect (background blur) apply to the bubble's camera.
         NSCameraPortraitEffectEnabled: true
+        # No encryption beyond what macOS provides, so App Store Connect skips the export
+        # compliance question on each build.
+        ITSAppUsesNonExemptEncryption: false
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.cd17822.streambubble
         PRODUCT_NAME: StreamBubble
         # Rendered from brand/ by scripts/make_appicon.sh.
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
-        # Local use only. No sandbox, so the app can write to ~/Movies without a picker.
-        ENABLE_APP_SANDBOX: NO
-        ENABLE_HARDENED_RUNTIME: NO
+        # The Mac App Store requires the App Sandbox. The entitlements file grants the camera,
+        # the microphone, and ~/Movies, so the app still saves without a picker.
+        ENABLE_APP_SANDBOX: YES
+        ENABLE_HARDENED_RUNTIME: YES
     dependencies:
       - package: StreamBubbleKit
       - sdk: ScreenCaptureKit.framework

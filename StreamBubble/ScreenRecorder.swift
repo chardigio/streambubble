@@ -32,6 +32,8 @@ final class ScreenRecorder: NSObject, SCStreamOutput, SCStreamDelegate, @uncheck
     private static let logger = Logger(subsystem: "com.cd17822.streambubble", category: "recorder")
     private let queue = DispatchQueue(label: "com.cd17822.streambubble.recorder")
     private var stream: SCStream?
+    /// When `start` was called, so the log shows how long the first frame took.
+    private var startRequestedAt: ContinuousClock.Instant?
     private var writer: AVAssetWriter?
     private var videoInput: AVAssetWriterInput?
     private var audioInput: AVAssetWriterInput?
@@ -108,9 +110,12 @@ final class ScreenRecorder: NSObject, SCStreamOutput, SCStreamDelegate, @uncheck
             self.timeline = PauseTimeline()
             self.sessionStarted = false
             self.stream = stream
+            self.startRequestedAt = .now
         }
+        let captureRequested = ContinuousClock.now
         do {
             try await stream.startCapture()
+            Self.logger.info("startCapture took \(captureRequested.duration(to: .now), privacy: .public)")
         } catch {
             queue.sync {
                 self.stream = nil
@@ -182,6 +187,9 @@ final class ScreenRecorder: NSObject, SCStreamOutput, SCStreamDelegate, @uncheck
             if !sessionStarted {
                 writer.startSession(atSourceTime: time)
                 sessionStarted = true
+                if let startRequestedAt {
+                    Self.logger.info("First frame came \(startRequestedAt.duration(to: .now), privacy: .public) after start")
+                }
             }
             append(buffer, at: time, to: videoInput)
         case .microphone:

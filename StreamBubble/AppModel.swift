@@ -1,6 +1,7 @@
 import AppKit
 import AVFoundation
 import Observation
+import OSLog
 import ScreenCaptureKit
 import StreamBubbleKit
 
@@ -59,9 +60,8 @@ final class AppModel: RecordingHost {
     @ObservationIgnored private var outlinePanel: RegionOutlinePanel?
     @ObservationIgnored private var portraitObserver: PortraitEffectObserver?
 
-    static let recordingsFolder = FileManager.default
-        .urls(for: .moviesDirectory, in: .userDomainMask)[0]
-        .appendingPathComponent("StreamBubble", isDirectory: true)
+    static let recordingsFolder = RecordingsLocation.folder()
+    private static let logger = Logger(subsystem: "com.cd17822.streambubble", category: "flow")
 
     init() {
         if let saved = UserDefaults.standard.string(forKey: "captureMode"), let mode = CaptureMode(rawValue: saved) {
@@ -194,7 +194,9 @@ final class AppModel: RecordingHost {
     }
 
     func startRecording(_ target: RecordingTarget) async throws {
+        let contentRequested = ContinuousClock.now
         let content = try await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: true)
+        Self.logger.info("SCShareableContent took \(contentRequested.duration(to: .now), privacy: .public)")
         guard let display = content.displays.first(where: { $0.displayID == target.screen.displayID }) else {
             throw RecorderError.noDisplay
         }
