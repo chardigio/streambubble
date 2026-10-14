@@ -37,6 +37,9 @@ final class AppModel: RecordingHost {
     var captureMode: CaptureMode = .display {
         didSet { UserDefaults.standard.set(captureMode.rawValue, forKey: "captureMode") }
     }
+    var recordingQuality: RecordingQuality = .default {
+        didSet { recordingQuality.save(to: .standard) }
+    }
     var bubbleStyle: BubbleStyle = .default {
         didSet {
             bubbleStyle.save(to: .standard)
@@ -67,6 +70,7 @@ final class AppModel: RecordingHost {
         if let saved = UserDefaults.standard.string(forKey: "captureMode"), let mode = CaptureMode(rawValue: saved) {
             captureMode = mode
         }
+        recordingQuality = RecordingQuality(defaults: .standard)
         bubbleStyle = BubbleStyle(defaults: .standard)
         bubbleSize = bubble.size
         flow = RecordingFlow(host: self)
@@ -218,6 +222,7 @@ final class AppModel: RecordingHost {
         try await recorder.start(
             target: CaptureTarget(
                 display: display, sourceRect: sourceRect, scale: target.screen.backingScaleFactor,
+                quality: recordingQuality,
                 excludedWindows: excluded, includeMicrophone: target.includeMicrophone
             ),
             outputURL: url

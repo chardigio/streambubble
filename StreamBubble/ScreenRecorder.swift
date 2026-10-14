@@ -1,6 +1,7 @@
 import AVFoundation
 import OSLog
 import ScreenCaptureKit
+import VideoToolbox
 import StreamBubbleKit
 
 /// What to record: a display, and optionally a part of it.
@@ -13,6 +14,8 @@ struct CaptureTarget: @unchecked Sendable {
     let sourceRect: CGRect?
     /// The display's backing scale, so the file has the screen's real pixel density.
     let scale: CGFloat
+    /// The codec, frame rate, and bitrate of the file.
+    let quality: RecordingQuality
     /// Our own windows to leave out of the video (the region outline, the countdown). The
     /// bubble is not in this list: the video must show it.
     let excludedWindows: [SCWindow]
@@ -48,13 +51,15 @@ final class ScreenRecorder: NSObject, SCStreamOutput, SCStreamDelegate, @uncheck
     func start(target: CaptureTarget, outputURL: URL) async throws {
         let pointSize = target.sourceRect?.size
             ?? CGSize(width: target.display.width, height: target.display.height)
-        let pixels = RegionGeometry.pixelSize(for: pointSize, scale: target.scale)
+        let quality = target.quality
+        let pixels = quality.outputPixelSize(for: pointSize, displayScale: target.scale)
+        let frameRate = quality.framesPerSecond
 
         let config = SCStreamConfiguration()
         config.width = pixels.width
         config.height = pixels.height
         if let rect = target.sourceRect { config.sourceRect = rect }
-        config.minimumFrameInterval = CMTime(value: 1, timescale: 60)
+        config.minimumFrameInterval = CMTime(value: 1, timescale: CMTimeScale(frameRate))
         config.pixelFormat = kCVPixelFormatType_32BGRA
         config.colorSpaceName = CGColorSpace.sRGB
         config.queueDepth = 6
@@ -68,17 +73,7 @@ final class ScreenRecorder: NSObject, SCStreamOutput, SCStreamDelegate, @uncheck
         }
 
         let writer = try AVAssetWriter(outputURL: outputURL, fileType: .mp4)
-        let video = AVAssetWriterInput(mediaType: .video, outputSettings: [
-            AVVideoCodecKey: AVVideoCodecType.h264,
-            AVVideoWidthKey: pixels.width,
-            AVVideoHeightKey: pixels.height,
-            AVVideoCompressionPropertiesKey: [
-                // About 6 bits per pixel per second is sharp for screen text at 60 fps.
-                AVVideoAverageBitRateKey: max(pixels.width * pixels.height * 6, 4_000_000),
-                AVVideoExpectedSourceFrameRateKey: 60,
-                AVVideoProfileLevelKey: AVVideoProfileLevelH264HighAutoLevel,
-            ],
-        ])
+        let video = AVAssetWriterInput(mediaType: .video, outputSettings: Self.videoSettings(quality: quality, pixels: pixels))
         video.expectsMediaDataInRealTime = true
         let audio = AVAssetWriterInput(mediaType: .audio, outputSettings: [
             AVFormatIDKey: kAudioFormatMPEG4AAC,
@@ -218,6 +213,40 @@ final class ScreenRecorder: NSObject, SCStreamOutput, SCStreamDelegate, @uncheck
     }
 
     // MARK: Helpers
+
+    private static func videoSettings(quality: RecordingQuality, pixels: PixelSize) -> [String: Any] {
+        var compression: [String: Any] = [
+            AVVideoAverageBitRateKey: quality.averageBitRate(for: pixels),
+            AVVideoExpectedSourceFrameRateKey: quality.framesPerSecond,
+            // A key frame each 2 seconds, so a player can seek in the file with no long wait.
+            AVVideoMaxKeyFrameIntervalKey: quality.framesPerSecond * 2,
+        ]
+        if let encoderQuality = quality.encoderQuality {
+            compression[AVVideoQualityKey] = encoderQuality
+        }
+        let codec: AVVideoCodecType
+        switch quality.codec {
+        case .h264:
+            codec = .h264
+            compression[AVVideoProfileLevelKey] = AVVideoProfileLevelH264HighAutoLevel
+        case .hevc:
+            codec = .hevc
+            compression[AVVideoProfileLevelKey] = kVTProfileLevel_HEVC_Main_AutoLevel as String
+        }
+        return [
+            AVVideoCodecKey: codec,
+            AVVideoWidthKey: pixels.width,
+            AVVideoHeightKey: pixels.height,
+            // The frames are sRGB, and the encoder converts them to BT.709. Without the tag,
+            // a player guesses the colors, and some guess wrong and show a washed-out picture.
+            AVVideoColorPropertiesKey: [
+                AVVideoColorPrimariesKey: AVVideoColorPrimaries_ITU_R_709_2,
+                AVVideoTransferFunctionKey: AVVideoTransferFunction_ITU_R_709_2,
+                AVVideoYCbCrMatrixKey: AVVideoYCbCrMatrix_ITU_R_709_2,
+            ],
+            AVVideoCompressionPropertiesKey: compression,
+        ]
+    }
 
     private func append(_ buffer: CMSampleBuffer, at time: CMTime, to input: AVAssetWriterInput?) {
         guard let input, input.isReadyForMoreMediaData else { return }

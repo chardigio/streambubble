@@ -78,6 +78,7 @@ only at launch).
 | Change the bubble size | Click it, or pick a size in the menu |
 | Get every option next to the bubble | Right-click the bubble |
 | Record only part of the screen | Menu > Record > Region…, then drag |
+| Pick the video quality | Menu > Quality: High (HEVC, 60 fps), or Standard (H.264, 30 fps) for a file that must play everywhere |
 | Blur the background | Menu > Blur Background…, then turn on Portrait |
 | Find your videos | Menu > Open Recordings Folder |
 

@@ -80,6 +80,15 @@ private struct MenuContent: View {
         }
         .pickerStyle(.inline)
         .disabled(model.state.isBusy)
+        // The settings are read when a recording starts, so a change in the middle of one
+        // would do nothing until the next one.
+        Picker("Quality", selection: $model.recordingQuality) {
+            ForEach(RecordingQuality.allCases) { quality in
+                Text(quality.menuTitle).tag(quality)
+            }
+        }
+        .pickerStyle(.menu)
+        .disabled(model.state.isBusy)
 
         Divider()
 

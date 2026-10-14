@@ -38,6 +38,13 @@ enum BubbleContextMenu {
             item.state = model.captureMode == mode ? .on : .off
             menu.addItem(item)
         }
+        let qualities = NSMenu()
+        for quality in RecordingQuality.allCases {
+            let item = ActionItem(quality.menuTitle, enabled: !state.isBusy) { model.recordingQuality = quality }
+            item.state = model.recordingQuality == quality ? .on : .off
+            qualities.addItem(item)
+        }
+        menu.addItem(submenu("Quality", qualities))
         menu.addItem(.separator())
 
         let sizes = NSMenu()
